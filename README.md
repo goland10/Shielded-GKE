@@ -47,7 +47,7 @@ External User
 
 ### Component breakdown
 
-**`internalVPC` — Project B (internal)**
+**`internalVPC` — Project B (Internal)**
 
 - **VPC & Subnets** — A dedicated internal VPC with a GKE subnet (nodes/pods/services secondary ranges) and a PSC NAT subnet.
 - **Private GKE Cluster** — Deployed via the `terraform-google-modules/kubernetes-engine/google//modules/private-cluster` module. Nodes have private IPs and pull images through a Cloud NAT gateway. GCP public CIDR access is disabled.
@@ -57,13 +57,13 @@ External User
 - **PSC Service Attachment** — Exposes the Nginx ILB forwarding rule through Private Service Connect so Project A can reach it without traversing the public internet.
 - **Firewall Rules** — IAP SSH access for node troubleshooting; health check ingress for the ILB.
 
-**`app` — Project B (internal cluster)**
+**`app` — Project B (Kubernetes resources)**
 
 - **Kubernetes Deployment** — 3-replica workload (configurable) running the application container.
 - **ClusterIP Service** — Internal service selector wired to the Deployment pods.
 - **Nginx Ingress resource** — Routes `/` traffic to the ClusterIP Service via the Nginx Ingress Controller provisioned in phase 1.
 
-**`externalVPC` — Project A (external)**
+**`externalVPC` — Project A (External)**
 
 - **VPC & Subnet** — A separate external VPC in Project A hosting the PSC NEG.
 - **PSC NEG** — A `PRIVATE_SERVICE_CONNECT` Network Endpoint Group pointing at the Service Attachment URI exported from `internalVPC` remote state.
@@ -75,13 +75,13 @@ External User
 
 IP ranges are calculated deterministically from `env_number` to allow multiple isolated environments to coexist:
 
-| Range | Formula | Example (env 1) |
-|---|---|---|
-| Nodes | `10.0.0.0/8` → offset `env*2`, `/24` | `10.2.0.0/24` |
-| Services | Same env block, last `/20` | `10.2.240.0/20` |
-| Pods | offset `env*2+1`, `/16` | `10.3.0.0/16` |
-| PSC NAT | Fixed | `10.1.0.0/24` |
-| External | Fixed | `10.1.1.0/24` |
+| Range | Project/VPC | Formula | Example (env 1) |
+|---|---|---|---|
+| Nodes | Internal | `10.0.0.0/8` → offset `env*2`, `/24` | `10.2.0.0/24` |
+| Services | Internal | Same env block, last `/20` | `10.2.240.0/20` |
+| Pods | Internal | offset `env*2+1`, `/16` | `10.3.0.0/16` |
+| PSC NAT | Internal | Fixed | `10.1.0.0/24` |
+| External | External |  Fixed | `10.1.1.0/24` |
 
 ### State Management
 
@@ -130,93 +130,25 @@ The identity running Terraform needs the following roles (or equivalents):
 - **Project A:** `roles/compute.loadBalancerAdmin`, `roles/certificatemanager.editor`, `roles/compute.securityAdmin`
 - **State bucket:** `roles/storage.objectAdmin` on `backends-all-projects`
 
-### tfvars
+### Terraform configuration (tfvars)
 
 Create a `.tfvars` file per environment per phase.
 
+Put these files in the env directory of each phase.
+
 Remember that each phase is under the responsibility of a different team.
-Each phase has its own envs directory.
 
-You can find  2 sample tfvars files `dev-01.tfvars` and `prod-02.tfvars` in every phase.
+You can find  2 sample tfvars files `dev-01.tfvars` and `prod-01.tfvars` for every phase.
 
-Examples:
+#### Examples
+ENV_NAME=prod-01
 
-internalVPC/envs/dev-01.tfvars:
-```hcl
-# -------------------------------------------------------------------
-# Environment identity
-# -------------------------------------------------------------------
-env_type = "dev"
-env_number = 1
-#env_name = "dev-01"
+[internalVPC](./terraform/internalVPC/envs/prod-01.tfvars)
 
-# -------------------------------------------------------------------
-# Labels / cost allocation
-# -------------------------------------------------------------------
-owner = "golan"
+[app](./terraform/app/envs/prod-01.tfvars)
 
-# -------------------------------------------------------------------
-# IAM (node service account)
-# -------------------------------------------------------------------
-#node_identity = "dev-01-node-identity"
+[externalVPC](./terraform/externalVPC/envs/prod-01.tfvars)
 
-node_identity_roles = [
-  "roles/logging.logWriter",
-  "roles/monitoring.metricWriter",
-  "roles/monitoring.viewer",
-]
-
-# -------------------------------------------------------------------
-# Location
-# -------------------------------------------------------------------
-#In case of zonal cluster (regional = false), 'zones' must include at least one zone
-regional = false
-zones = ["europe-west2-b"]      # London
-
-enable_private_nodes = true
-enable_private_endpoint = true
-
-# -------------------------------------------------------------------
-# GKE node configuration
-# -------------------------------------------------------------------
-node_instance_type = "e2-medium"  # e2-medium | e2-standard-4 | n2-standard-4
-node_disk_size_gb  = 20           # 20 | 30 | 50
-
-node_min   = 1
-node_max   = 3
-node_count = 1
-
-# -------------------------------------------------------------------
-# GKE cluster behavior
-# -------------------------------------------------------------------
-deletion_protection = false
-release_channel     = "RAPID"   # RAPID | REGULAR | STABLE and more
-
-logging_components    = ["SYSTEM_COMPONENTS"]   # "SYSTEM_COMPONENTS"
-monitoring_components = ["SYSTEM_COMPONENTS"]   # "SYSTEM_COMPONENTS"
-
-timeouts = {
-  create = "10m"
-}
-```
-terraform/app/envs/dev-01.tfvars:
-```hcl
-# Environment Identity
-env_type   = "dev"
-env_number = 1
-owner      = "golan"
-```
-
-terraform/externalVPC/envs/dev-01.tfvars:
-```hcl
-# Environment Identity
-env_type   = "dev"
-env_number = 1
-owner      = "golan"
-
-# Domain Configuration
-domain_name = "myapp.axum.uk.il"
-```
 ---
 
 ## Best Practices
