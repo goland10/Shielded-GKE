@@ -285,11 +285,14 @@ domain_name = "myapp.axum.uk.il"
       terraform -chdir=./$PHASE apply -auto-approve $ENV_NAME;
     done
     ```
-6. wait a few minutes before testing. Use the curl command of the last phase output to sent https request to the web server through the external LB.
+6. Test the deployment: 
+    
+    Wait a few minutes before testing (Otherwise you might get an ssl error). 
+    
+    Use the `curl` command seen on the last phase output to sent https request to the    web server through the external ALB.
 
-    ![alt text](image.png)
+    ![alt text](./docs/testing_external_alb.png)
 
-7. `terraform destroy -var-file ./envs/${ENV_NAME}.tfvars -auto-approve`
 ## Destroy instructions
 1. if `deletion_protection = true`, change it to `false` and run:
     ```bash
