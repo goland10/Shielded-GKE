@@ -54,5 +54,4 @@
         certificatemanager.googleapis.com \
         networkconnectivity.googleapis.com
     ```
-
-curl -v -k --resolve myapp.axum.uk.il:443:35.190.6.34 https://myapp.axum.uk.il
+    

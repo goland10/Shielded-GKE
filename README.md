@@ -23,19 +23,23 @@ External User
      │
      ▼ HTTPS (443)
 ┌─────────────────────────────────────────────┐
-│  Project A  │  VPC A (external)              │
+│  Project A  │  VPC A (External)              │
 │                                              │
 │  Cloud Armor WAF                             │
 │       │                                      │
 │  Global External HTTPS Load Balancer         │
 │  (Certificate Manager · Static IP)           │
+|       |                                      |
+|   PSC Network Endpoint Group                 |
 └───────────────────┬─────────────────────────┘
-                    │  Private Service Connect (PSC NEG)
+                    │  Private Service Connect (PSC)
                     ▼
 ┌─────────────────────────────────────────────┐
-│  Project B  │  VPC B (internal)              │
-│                                              │
-│  Internal HTTPS Load Balancer (ILB)          │
+|  Project B  │  VPC B (Internal)              |
+|                                              |
+│  PSC Service Attachment (published)          │
+│       |                                      │
+│  Internal Network Load Balancer (Helm)       │
 │       │                                      │
 │  GKE Private Cluster (Fleet-enrolled)        │
 │       │                                      │
@@ -89,7 +93,7 @@ All three phases share a single GCS bucket (`backends-all-projects`) with per-en
 
 ```
 backends-all-projects/
-  dev-01/
+  prod-01/
     internalVPC/   ← phase 1 state
     app/           ← phase 2 state
     externalVPC/   ← phase 3 state
@@ -115,7 +119,7 @@ Before running any `terraform init`, ensure the following are in place:
 
 ### GCP Projects (Internal + External) & APIs
 
-Two GCP projects are required + required APIs enabled. [Instructions here](./docs/prerequisites.md)
+Two GCP projects are required + required APIs enabled. [Instructions here](./docs/prerequisites.md#create-a-project-for-the-internal-vpc-gke)
 
 ### GCP project with GCS State Bucket to store all backends
 
@@ -169,7 +173,7 @@ ENV_NAME=prod-01
 
 ### Networking
 
-- **Deterministic CIDR allocation** — CIDRs are derived from `env_number`, making it safe to spin up multiple isolated environments (dev-01, dev-02, prod-03, etc.) in the same projects without address conflicts.
+- **Deterministic CIDR allocation** — CIDRs are derived from `env_number`, making it safe to spin up multiple isolated environments (dev-01, dev-02, prod-01, etc.) in the same projects without address conflicts.
 
 - **Dedicated PSC NAT subnet** — The PSC NAT subnet is purposely scoped (`purpose = "PRIVATE_SERVICE_CONNECT"`) and kept separate from node/pod subnets.
 
@@ -182,31 +186,30 @@ ENV_NAME=prod-01
   ```bash
   # Phase 1
   terraform -chdir=internalVPC init -reconfigure \
-    -backend-config="prefix=dev-01/internalVPC"
+    -backend-config="prefix=prod-01/internalVPC"
 
   # Phase 2
   terraform -chdir=app init -reconfigure \
-    -backend-config="prefix=dev-01/app"
+    -backend-config="prefix=prod-01/app"
 
   # Phase 3
   terraform -chdir=externalVPC init -reconfigure \
-    -backend-config="prefix=dev-01/externalVPC"
+    -backend-config="prefix=prod-01/externalVPC"
   ```
 - **`wait = true` on the Helm release** — The Nginx Ingress Helm release uses `wait = true` so Terraform blocks until the Internal Load Balancer IP is assigned before the PSC Service Attachment attempts to read it.
 - **Pin provider versions** — All providers are pinned with `~>` constraints (e.g., `google ~> 7.24.0`) to prevent unexpected upgrades from breaking the configuration.
-- **Sensitive outputs marked correctly** — GKE endpoint and cluster ID outputs use `nonsensitive()` intentionally; verify this matches your security policy before sharing state remotely.
 - **Testing** - After a successful `externalVPC` apply, the stack outputs a ready-to-use `curl` command to test the load balancer before DNS is configured:
 
   ```bash
   terraform -chdir=externalVPC output test_alb_command
-  # curl --resolve dev-01.example.com:443:<IP> -k https://dev-01.example.com
+  "curl --resolve myapp.axum.uk.il:443:34.111.195.32 -k https://myapp.axum.uk.il"
   ```
 
 ## Deployment instructions
 1. Setup bucket name in [backend.tf](./terraform/backend.tf).
 2. Configure your desired tfvars file (per phase per environment).
-3. Nevigate to the `terrform` directory
-4. Set the environment variable `ENV_NAME` (e.g., `ENV_NAME=dev-01`) 
+3. Nevigate to the `terrform` directory.
+4. Set the environment variable `ENV_NAME` in your shell (e.g., `ENV_NAME=prod-01`).
 5. Loop on the 3 phases to deploy the whole project
     ```bash
     for PHASE in internalVPC app externalVPC ; 
@@ -221,12 +224,12 @@ ENV_NAME=prod-01
     
     Wait a few minutes before testing (Otherwise you might get an ssl error). 
     
-    Use the `curl` command seen on the last phase output to sent https request to the    web server through the external ALB.
+    Use the `curl` command seen on the last phase output to send https request to the web server through the external ALB.
 
     ![alt text](./docs/testing_external_alb.png)
 
 ## Destroy instructions
-1. if `deletion_protection = true`, change it to `false` and run:
+1. if `deletion_protection = true` (internalVPC tfvars file), change it to `false` and run:
     ```bash
     terraform -chdir=./internalVPC apply -var-file ./envs/${ENV_NAME}.tfvars 
     ```
