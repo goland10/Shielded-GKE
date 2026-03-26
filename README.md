@@ -16,7 +16,7 @@ The phases **must be applied in order**: `internalVPC` → `app` → `externalVP
 
 ## Architecture
 
-[Architecture diagram here](./docs/architecture.png)
+[Architecture diagram here](./docs/architecture.svg)
 
 ```
 External User
@@ -145,6 +145,7 @@ Remember that each phase is under the responsibility of a different team.
 You can find  2 sample tfvars files `dev-01.tfvars` and `prod-01.tfvars` for every phase.
 
 #### Examples
+
 ENV_NAME=prod-01
 
 [internalVPC](./terraform/internalVPC/envs/prod-01.tfvars)
@@ -208,7 +209,7 @@ ENV_NAME=prod-01
 ## Deployment instructions
 1. Setup bucket name in [backend.tf](./terraform/backend.tf).
 2. Configure your desired tfvars file (per phase per environment).
-3. Nevigate to the `terrform` directory.
+3. Navigate to the `terraform` directory.
 4. Set the environment variable `ENV_NAME` in your shell (e.g., `ENV_NAME=prod-01`).
 5. Loop on the 3 phases to deploy the whole project
     ```bash
@@ -222,7 +223,7 @@ ENV_NAME=prod-01
     ```
 6. Test the deployment: 
     
-    Wait a few minutes before testing (Otherwise you might get an ssl error). 
+    Wait a few minutes before testing (Otherwise you might get ssl error). 
     
     Use the `curl` command seen on the last phase output to send https request to the web server through the external ALB.
 
@@ -248,7 +249,7 @@ ENV_NAME=prod-01
 
     `gcloud container fleet memberships get-credentials $ENV_NAME`
 
-2. ssh to one of the worker nodes to invastigate internal connectivty
+2. ssh to one of the worker nodes to investigate internal connectivity
 
     `gcloud compute ssh NODE_NAME --zone=ZONE --tunnel-through-iap`
     
