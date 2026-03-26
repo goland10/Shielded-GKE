@@ -16,7 +16,8 @@ The phases **must be applied in order**: `internalVPC` → `app` → `externalVP
 
 ## Architecture
 
-[Architecture diagram here](./docs/architecture.svg)
+
+[🔍 View Full-Scale Architecture Diagram](https://github.com/goland10/Shielded-GKE/raw/main/architecture.svg)
 
 ```
 External User
