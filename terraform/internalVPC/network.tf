@@ -82,7 +82,7 @@ resource "google_compute_firewall" "nginx_health_check" {
 }
 
 ###########################################################################
-# Nat gateway for the gke cluster to able to pull images from the internet
+# Nat gateway to enable the gke cluster to pull images from the internet
 ###########################################################################
 
 resource "google_compute_router" "router" {

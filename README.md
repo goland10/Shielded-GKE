@@ -17,7 +17,7 @@ The phases **must be applied in order**: `internalVPC` → `app` → `externalVP
 ## Architecture
 
 
-[View Full-Scale Architecture Diagram](./docs/architecture.png)
+[View Full-Scale Architecture Diagram](./docs/architecture.drawio.svg)
 
 ```
 External User
